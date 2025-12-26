@@ -1,0 +1,49 @@
+# IDEs
+.vscode/
+.idea/
+*.iws
+*.iml
+*.ipr
+*.swp
+*.swo
+*~
+.project
+.classpath
+.factorypath
+.settings/
+.sts4-cache/
+
+# Build & Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+build/
+*.class
+*.jar
+*.war
+*.ear
+.maven/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE Settings
+.vscode/settings.json
+.vscode/extensions.json
+
+# LocalStack
+.localstack/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite

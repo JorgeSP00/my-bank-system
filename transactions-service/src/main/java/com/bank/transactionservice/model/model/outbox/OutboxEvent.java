@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.outbox;
+package com.bank.transactionservice.model.model.outbox;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,8 +12,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
@@ -30,8 +28,7 @@ import jakarta.persistence.Table;
 public class OutboxEvent {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(name = "aggregate_type", nullable = false)
     private String aggregateType;
@@ -60,6 +57,7 @@ public class OutboxEvent {
 
     @PrePersist
     protected void onCreate() {
+        this.id = UUID.randomUUID();
         this.createdAt = LocalDateTime.now();
         this.status = OutboxEventStatus.PENDING;
     }

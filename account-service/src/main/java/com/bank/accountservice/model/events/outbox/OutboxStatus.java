@@ -1,4 +1,4 @@
-package com.bank.accountservice.model.outbox;
+package com.bank.accountservice.model.events.outbox;
 
 /**
  * Estados de un evento en el patrón Outbox.

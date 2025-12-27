@@ -10,7 +10,7 @@ import com.bank.accountservice.exception.CouldNotSerializeEvent;
 import com.bank.accountservice.kafka.KafkaTopics;
 import com.bank.accountservice.mapper.AccountMapper;
 import com.bank.accountservice.model.account.Account;
-import com.bank.accountservice.model.outbox.OutboxEvent;
+import com.bank.accountservice.model.events.outbox.OutboxEvent;
 import com.bank.accountservice.model.transaction.TransactionStatus;
 import com.bank.accountservice.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,6 +1,6 @@
 -- Migration: create outbox_event table for Outbox pattern
 CREATE TABLE IF NOT EXISTS outbox_event (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     aggregate_type VARCHAR(255) NOT NULL,
     aggregate_id UUID NOT NULL,
     type VARCHAR(255) NOT NULL,

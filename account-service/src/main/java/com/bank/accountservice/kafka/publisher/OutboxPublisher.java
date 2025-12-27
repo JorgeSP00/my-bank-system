@@ -12,8 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bank.accountservice.model.outbox.OutboxEvent;
-import com.bank.accountservice.model.outbox.OutboxStatus;
+import com.bank.accountservice.model.events.outbox.OutboxEvent;
+import com.bank.accountservice.model.events.outbox.OutboxStatus;
 import com.bank.accountservice.repository.OutboxEventRepository;
 
 import lombok.RequiredArgsConstructor;

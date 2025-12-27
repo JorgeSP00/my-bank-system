@@ -10,8 +10,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bank.transactionservice.model.outbox.OutboxEvent;
-import com.bank.transactionservice.model.outbox.OutboxEventStatus;
+import com.bank.transactionservice.model.model.outbox.OutboxEvent;
+import com.bank.transactionservice.model.model.outbox.OutboxEventStatus;
 import com.bank.transactionservice.repository.OutboxEventRepository;
 
 import java.time.LocalDateTime;

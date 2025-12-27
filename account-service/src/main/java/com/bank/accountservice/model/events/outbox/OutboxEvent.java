@@ -1,11 +1,9 @@
-package com.bank.accountservice.model.outbox;
+package com.bank.accountservice.model.events.outbox;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
@@ -31,8 +29,7 @@ import java.util.UUID;
 public class OutboxEvent {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(name = "aggregate_type", nullable = false)
     private String aggregateType; // ej: "Account"
@@ -61,6 +58,7 @@ public class OutboxEvent {
 
     @PrePersist
     public void prePersist() {
+        this.id = UUID.randomUUID();
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
         }

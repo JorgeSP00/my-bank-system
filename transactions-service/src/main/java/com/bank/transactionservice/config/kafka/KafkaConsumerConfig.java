@@ -38,8 +38,8 @@ public class KafkaConsumerConfig {
     private final KafkaTemplate<String, String> kafkaTemplate;
     
     /**
-     * Consumer factory para AccountProcessedEvent
-     * Deserializa records de los topics "account.created" y "account.updated"
+     * Consumer factory for AccountProcessedEvent
+     * Deserializes records of topics "account.created" and "account.updated"
      */
     @Bean
     public ConsumerFactory<String, AccountProcessedEvent> accountProcessedEventConsumerFactory() {

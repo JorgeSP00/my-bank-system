@@ -1,18 +1,14 @@
-package com.bank.accountservice.config;
+package com.bank.accountservice.config.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
-import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
@@ -22,6 +18,7 @@ import org.springframework.util.backoff.FixedBackOff;
 
 import com.bank.accountservice.event.consumer.TransactionProcessedEvent;
 
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
@@ -39,20 +36,10 @@ public class KafkaConsumerConfig {
     private String groupId;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    
-    @Bean
-    public KafkaAdmin kafkaAdmin(
-            KafkaProperties kafkaProperties,
-            ObjectProvider<SslBundles> sslBundlesProvider
-    ) {
-        SslBundles sslBundles = sslBundlesProvider.getIfAvailable();
-        Map<String, Object> configs = kafkaProperties.buildAdminProperties(sslBundles);
-        return new KafkaAdmin(configs);
-    }
 
     /**
-     * Consumer factory para TransactionProcessedEvent
-     * Deserializa records del topic "transaction.requested"
+     * Consumer factory for TransactionProcessedEvent
+     * Deserializes records of topic "transaction.requested"
      */
     @Bean
     public ConsumerFactory<String, TransactionProcessedEvent> transactionProcessedEventConsumerFactory() {
@@ -83,10 +70,17 @@ public class KafkaConsumerConfig {
 
         DeadLetterPublishingRecoverer recoverer =
             new DeadLetterPublishingRecoverer(kafkaTemplate);
-
+        //3 retries with a backoff of 2 seconds
         FixedBackOff backOff = new FixedBackOff(2000L, 3);
 
-        return new DefaultErrorHandler(recoverer, backOff);
+        DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
+
+        // These exceptions will not be retried and will be sent directly to the DLT
+        handler.addNotRetryableExceptions(
+                IllegalArgumentException.class,
+                ValidationException.class
+        );
+        return handler;
     }
 
 }

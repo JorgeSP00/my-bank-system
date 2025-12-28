@@ -3,8 +3,8 @@ package com.bank.transactionservice.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.bank.transactionservice.model.model.outbox.OutboxEvent;
-import com.bank.transactionservice.model.model.outbox.OutboxEventStatus;
+import com.bank.transactionservice.model.outbox.OutboxEvent;
+import com.bank.transactionservice.model.outbox.OutboxEventStatus;
 
 import java.util.List;
 

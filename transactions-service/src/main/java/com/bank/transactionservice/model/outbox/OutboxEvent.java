@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.model.outbox;
+package com.bank.transactionservice.model.outbox;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

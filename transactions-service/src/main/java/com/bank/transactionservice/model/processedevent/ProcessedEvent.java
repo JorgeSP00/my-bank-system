@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.model.processedevent;
+package com.bank.transactionservice.model.processedevent;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

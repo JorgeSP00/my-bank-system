@@ -2,7 +2,7 @@ package com.bank.transactionservice.kafka.consumer;
 
 import com.bank.transactionservice.event.consumer.TransactionCompletedEvent;
 import com.bank.transactionservice.kafka.KafkaTopics;
-import com.bank.transactionservice.model.model.processedevent.ProcessedEvent;
+import com.bank.transactionservice.model.processedevent.ProcessedEvent;
 import com.bank.transactionservice.repository.ProcessedEventRepository;
 import com.bank.transactionservice.service.TransactionService;
 

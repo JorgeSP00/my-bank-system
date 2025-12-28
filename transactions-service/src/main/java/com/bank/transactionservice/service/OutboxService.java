@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import com.bank.transactionservice.model.model.outbox.OutboxEvent;
+import com.bank.transactionservice.model.outbox.OutboxEvent;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.repository.OutboxEventRepository;
 import com.bank.transactionservice.event.producer.TransactionRequestedMessage;

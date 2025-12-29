@@ -47,18 +47,27 @@ public class OutboxEvent {
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
-    private OutboxEventStatus status;
+    private OutboxStatus status;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
+    
+    @Column(nullable = false)
+    private int attempts;
 
     @PrePersist
     protected void onCreate() {
         this.id = UUID.randomUUID();
         this.createdAt = LocalDateTime.now();
-        this.status = OutboxEventStatus.PENDING;
+        this.attempts = 0;
+        this.status = OutboxStatus.PENDING;
+    }
+    
+    public int incrementAttempts() {
+        this.attempts += 1;
+        return this.attempts;
     }
 }

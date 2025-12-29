@@ -46,8 +46,9 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       group-id: account-service-group
       enable-auto-commit: false
-  scheduler:
-    outbox:
+  outbox:
+    batch-size: 100
+    scheduler:
       delay-ms: 5000
 
 management:

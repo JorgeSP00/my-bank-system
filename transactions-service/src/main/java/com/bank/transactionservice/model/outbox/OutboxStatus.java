@@ -1,6 +1,6 @@
 package com.bank.transactionservice.model.outbox;
 
-public enum OutboxEventStatus {
+public enum OutboxStatus {
     PENDING,
     SENT,
     FAILED

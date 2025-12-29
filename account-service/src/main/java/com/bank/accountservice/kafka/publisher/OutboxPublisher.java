@@ -1,9 +1,11 @@
 package com.bank.accountservice.kafka.publisher;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
@@ -32,64 +34,82 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
+    @Value("${spring.outbox.batch-size}")
+    private int batchSize;
+
     /**
      * Publica eventos pendientes en Kafka.
      * Ejecuta cada 5 segundos para procesar eventos que aún no han sido publicados.
      */
-    @Scheduled(fixedDelayString = "${spring.scheduler.outbox.delay-ms}")
-    @Transactional
+    @Scheduled(fixedDelayString = "${spring.outbox.scheduler.delay-ms}")
     public void publishPendingEvents() {
-        List<OutboxEvent> pendingEvents = outboxEventRepository.findByStatus(OutboxStatus.PENDING);
-        
-        if (pendingEvents.isEmpty()) {
-            log.debug("[OutboxPublisher] No pending events to publish");
+        Page<OutboxEvent> page = outboxEventRepository
+                .findNextPending(PageRequest.of(0, batchSize));
+
+        if (page.isEmpty()) {
+            log.debug("[OutboxPublisher] No pending events");
             return;
         }
-        
-        log.info("[OutboxPublisher] Processing {} pending events", pendingEvents.size());
 
-        for (OutboxEvent event : pendingEvents) {
-            publishEvent(event);
-        }
+        log.info("[OutboxPublisher] Processing {} events", page.getNumberOfElements());
+
+        page.forEach(this::publishEventAsync);
     }
 
-    /**
-     * Publica un evento individual a Kafka.
-     */
-    private void publishEvent(OutboxEvent event) {
-        UUID transactionId = UUID.randomUUID();
-        String topic = event.getTopic() != null && !event.getTopic().isBlank() ? event.getTopic() : event.getType();
-        
-        try {
-            log.debug("[OutboxPublisher] [TxId: {}] Publishing event - AggregateType: {}, AggregateId: {}, EventType: {}, Topic: {}", 
-                transactionId, event.getAggregateType(), event.getAggregateId(), event.getType(), topic);
-            
-            // Crear mensaje con headers para mejor trazabilidad
-            Message<String> message = MessageBuilder
+    private void publishEventAsync(OutboxEvent event) {
+        UUID txId = UUID.randomUUID();
+
+        Message<String> message = MessageBuilder
                 .withPayload(event.getPayload())
+                .setHeader(KafkaHeaders.TOPIC, event.getTopic())
                 .setHeader("X-Event-Id", event.getId().toString())
                 .setHeader("X-Aggregate-Id", event.getAggregateId().toString())
                 .setHeader("X-Event-Type", event.getType())
                 .setHeader("X-Aggregate-Type", event.getAggregateType())
                 .setHeader("X-Timestamp", event.getCreatedAt().toString())
-                .setHeader(KafkaHeaders.TOPIC, topic)
                 .build();
-            
-            kafkaTemplate.send(message).get(); // bloquea hasta confirmar
-            
-            event.setStatus(OutboxStatus.SENT);
-            event.setSentAt(LocalDateTime.now());
-            outboxEventRepository.save(event);
-            
-            log.info("[OutboxPublisher] [TxId: {}] ✅ Event published successfully - Topic: {}, EventType: {}, AggregateId: {}", 
-                transactionId, topic, event.getType(), event.getAggregateId());
-                
-        } catch (Exception e) {
-            log.error("[OutboxPublisher] [TxId: {}] ❌ Failed to publish event - Topic: {}, EventType: {}, AggregateId: {}, Error: {}", 
-                transactionId, topic, event.getType(), event.getAggregateId(), e.getMessage(), e);
-            
-            event.setStatus(OutboxStatus.FAILED);
-            outboxEventRepository.save(event);
-        }
+
+        kafkaTemplate.send(message)
+            .thenAccept(result -> onSuccess(event, txId, event.getTopic()))
+            .exceptionally(ex -> {
+                onFailure(event, txId, event.getTopic(), ex);
+                return null;
+            });
+
     }
+
+    @Transactional
+    protected void onSuccess(OutboxEvent event, UUID txId, String topic) {
+        event.setStatus(OutboxStatus.SENT);
+        event.setSentAt(LocalDateTime.now());
+        outboxEventRepository.save(event);
+
+        log.info(
+            "[OutboxPublisher][TxId:{}] Event SENT - topic={}, type={}, aggregateId={}",
+            txId, topic, event.getType(), event.getAggregateId()
+        );
+    }
+
+    @Transactional
+    protected void onFailure(OutboxEvent event, UUID txId, String topic, Throwable ex) {
+        int attempts = event.incrementAttempts();
+        if (attempts >= 5) {
+            event.setStatus(OutboxStatus.FAILED);
+            log.error(
+                "[OutboxPublisher][TxId:{}] Event FAILED permanently after {} attempts - {}",
+                txId, attempts, event.getId(), ex
+            );
+        } else {
+            event.setStatus(OutboxStatus.PENDING);
+            log.warn(
+                "[OutboxPublisher][TxId:{}] Publish failed (attempt {}) - will retry",
+                txId, attempts, ex
+            );
+        }
+
+        outboxEventRepository.save(event);
+    }
+
+
+
 }

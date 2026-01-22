@@ -55,14 +55,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: "health,info,metrics,prometheus"
       base-path: /actuator
+      enable-by-default: true
   endpoint:
     health:
-      show-details: always
+      show-details: "ALWAYS"
       probes:
         enabled: true
-  
+  metrics:
+    export:
+      prometheus:
+        enabled: true
   health:
     kafka:
       enabled: true

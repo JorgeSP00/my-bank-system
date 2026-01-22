@@ -10,6 +10,7 @@ import com.bank.accountservice.exception.AccountAlreadyExists;
 import com.bank.accountservice.exception.AccountNotFound;
 import com.bank.accountservice.model.account.Account;
 import com.bank.accountservice.model.account.AccountStatus;
+import com.bank.accountservice.observability.MetricService;
 import com.bank.accountservice.repository.AccountRepository;
 
 import java.math.BigDecimal;
@@ -29,14 +30,19 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final OutboxService outboxService;
+    private final MetricService metricService;
 
     public List<Account> findAllAccounts() {
         log.debug("[AccountService] Retrieving all accounts");
+        metricService.timer("account.retrieval").record(() -> {
+            // Operación registrada por el timer
+        });
         return accountRepository.findAll();
     }
 
     public Account getAccountEntityById(UUID id) {
         log.debug("[AccountService] Getting account by ID - AccountId: {}", id);
+        metricService.accountCreated("retrieved").increment();
         return accountRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("[AccountService] Account not found - AccountId: {}", id);
@@ -46,6 +52,7 @@ public class AccountService {
 
     public Account getAccountByIdWithLock(UUID id) {
         log.debug("[AccountService] Getting account by ID with lock - AccountId: {}", id);
+        metricService.accountCreated("locked").increment();
         return accountRepository.findByIdWithLock(id)
                 .orElseThrow(() -> {
                     log.warn("[AccountService] Account not found - AccountId: {}", id);
@@ -59,21 +66,28 @@ public class AccountService {
         log.info("[AccountService] [TxId: {}] Updating account - AccountId: {}, AccountNumber: {}", 
             transactionId, account.getId(), account.getAccountNumber());
         
-        Optional<Account> existing = accountRepository.findById(account.getId());
-        if(existing.isPresent()) {
-            Account existingAccount = existing.get();
-            existingAccount.setAccountNumber(account.getAccountNumber());
-            existingAccount.setOwnerName(account.getOwnerName());
-            existingAccount.setStatus(account.getStatus());
-            existingAccount.setBalance(account.getBalance());
-            existingAccount.setVersionId(existingAccount.getVersionId() + 1);
-            saveAccount(existingAccount);
-            outboxService.saveAccountUpdatedEvent(existingAccount);
-            log.info("[AccountService] [TxId: {}] ✅ Account updated successfully - AccountId: {}", transactionId, account.getId());
-            return existingAccount;
-        } else {
-            log.warn("[AccountService] [TxId: {}] Account not found for update - AccountId: {}", transactionId, account.getId());
-            throw new AccountNotFound("Account with ID " + account.getId() + " not found");
+        long startTime = System.currentTimeMillis();
+        try {
+            Optional<Account> existing = accountRepository.findById(account.getId());
+            if(existing.isPresent()) {
+                Account existingAccount = existing.get();
+                existingAccount.setAccountNumber(account.getAccountNumber());
+                existingAccount.setOwnerName(account.getOwnerName());
+                existingAccount.setStatus(account.getStatus());
+                existingAccount.setBalance(account.getBalance());
+                existingAccount.setVersionId(existingAccount.getVersionId() + 1);
+                saveAccount(existingAccount);
+                outboxService.saveAccountUpdatedEvent(existingAccount);
+                metricService.accountUpdated("success").increment();
+                log.info("[AccountService] [TxId: {}] ✅ Account updated successfully - AccountId: {}", transactionId, account.getId());
+                return existingAccount;
+            } else {
+                log.warn("[AccountService] [TxId: {}] Account not found for update - AccountId: {}", transactionId, account.getId());
+                metricService.accountUpdated("failed").increment();
+                throw new AccountNotFound("Account with ID " + account.getId() + " not found");
+            }
+        } finally {
+            metricService.transactionTimer("account_update").record(System.currentTimeMillis() - startTime, java.util.concurrent.TimeUnit.MILLISECONDS);
         }
     }
 
@@ -88,18 +102,25 @@ public class AccountService {
         log.info("[AccountService] [TxId: {}] Creating new account - AccountNumber: {}, Owner: {}", 
             transactionId, account.getAccountNumber(), account.getOwnerName());
         
-        Optional<Account> existing = accountRepository.findByAccountNumber(account.getAccountNumber());
-        if (existing.isPresent()) {
-            log.warn("[AccountService] [TxId: {}] Account already exists - AccountNumber: {}", 
-                transactionId, account.getAccountNumber());
-            throw new AccountAlreadyExists("Account with account number " + account.getAccountNumber() + " already exists");
-        }
-        else {
-            Account saved = accountRepository.save(account);
-            outboxService.saveAccountCreatedEvent(saved);
-            log.info("[AccountService] [TxId: {}] ✅ Account created successfully - AccountId: {}, AccountNumber: {}", 
-                transactionId, saved.getId(), saved.getAccountNumber());
-            return saved;
+        long startTime = System.currentTimeMillis();
+        try {
+            Optional<Account> existing = accountRepository.findByAccountNumber(account.getAccountNumber());
+            if (existing.isPresent()) {
+                log.warn("[AccountService] [TxId: {}] Account already exists - AccountNumber: {}", 
+                    transactionId, account.getAccountNumber());
+                metricService.accountCreated("already_exists").increment();
+                throw new AccountAlreadyExists("Account with account number " + account.getAccountNumber() + " already exists");
+            }
+            else {
+                Account saved = accountRepository.save(account);
+                outboxService.saveAccountCreatedEvent(saved);
+                metricService.accountCreated("success").increment();
+                log.info("[AccountService] [TxId: {}] ✅ Account created successfully - AccountId: {}, AccountNumber: {}", 
+                    transactionId, saved.getId(), saved.getAccountNumber());
+                return saved;
+            }
+        } finally {
+            metricService.transactionTimer("account_creation").record(System.currentTimeMillis() - startTime, java.util.concurrent.TimeUnit.MILLISECONDS);
         }
     }
 

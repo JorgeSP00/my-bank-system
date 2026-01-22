@@ -12,6 +12,7 @@ import com.bank.accountservice.mapper.AccountMapper;
 import com.bank.accountservice.model.account.Account;
 import com.bank.accountservice.model.events.outbox.OutboxEvent;
 import com.bank.accountservice.model.transaction.TransactionStatus;
+import com.bank.accountservice.observability.MetricService;
 import com.bank.accountservice.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -26,6 +27,7 @@ public class OutboxService {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
     private final AccountMapper accountMapper;
+    private final MetricService metricService;
 
     /**
      * Guarda un evento en la tabla outbox_event para posterior publicación a Kafka.
@@ -55,6 +57,7 @@ public class OutboxService {
                     .build();
 
             outboxEventRepository.save(outboxEvent);
+            metricService.outboxEventSaved(eventType).increment();
             
             log.info("[OutboxEventService] [TxId: {}] ✅ Event saved to outbox - EventType: {}, Topic: {}, AggregateId: {}, EventId: {}", 
                 transactionId, eventType, topic, aggregateId, outboxEvent.getId());
@@ -62,6 +65,7 @@ public class OutboxService {
         } catch (Exception e) {
             log.error("[OutboxEventService] [TxId: {}] ❌ Failed to save outbox event - AggregateType: {}, AggregateId: {}, EventType: {}, Error: {}", 
                 transactionId, aggregateType, aggregateId, eventType, e.getMessage(), e);
+            metricService.outboxEventFailed(eventType).increment();
             throw new CouldNotSerializeEvent("Failed to save outbox event for " + eventType + " with aggregateId " + aggregateId, e);
         }
     }
@@ -96,6 +100,7 @@ public class OutboxService {
                 KafkaTopics.ACCOUNT_CREATED,
                 accountMapper.fromEntityToMessage(account)
             );
+            log.debug("[AccountService] [TxId: {}] AccountCreatedEvent saved to outbox - EventId: {}", account.getId(), account.getId());
         } catch (CouldNotSerializeEvent e) {
             log.error("[AccountService] Failed to serialize AccountCreatedEvent - AccountId: {}, Error: {}", 
                 account.getId(), e.getMessage(), e);
